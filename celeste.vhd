@@ -1,37 +1,6 @@
---------------------------------------------------------------------------------
--- Proyecto Final - Diseño de Sistemas Digitales
--- Mini videojuego de plataformas estilo "Celeste" - Terasic DE0 (Cyclone III)
---
--- Archivo : celeste_.vhd   (TOP ENTITY DEL PROYECTO: entidad "celeste")
---
--- Jerarquia:
---   celeste
---    |- btn_conditioner x6   (sincronizador + antirrebote de los pulsadores)
---    |- vga_sync             (Image Sync: pix_ce, HSync, VSync, X, Y, frame_tick)
---    |- game_fsm             (FSM principal: menu / juego / pausa / victoria / game over)
---    |- player_engine        (FSM de movimiento + fisicas + colisiones)
---    |    '- collision_unit -> tile_rom   (mapa en memoria M9K)
---    |- time_counter         (cronometro BCD de 3 digitos) -> bcd_counter x3
---    |- pixel_gen            (Pixel Generate) -> tile_rom
---    '- seg7_decoder x4      (HEX3 = vidas, HEX2..HEX0 = segundos)
---
--- Controles (pulsadores externos a GND con pull-up; la DE0 los activa en bajo):
---    btn_left / btn_right : caminar        btn_jump : salto / doble salto
---    btn_dash             : impulso        btn_duck : agacharse
---    btn_start            : iniciar / pausar / volver al menu
---    Reset_n              : BUTTON[0] de la DE0
---
--- LEDG (depuracion): 0 en suelo | 1 dash disponible | 2 doble salto disponible |
---    3 agachado | 6..4 modo (000 suelo,001 agachado,010 salto,011 caida,100 dash) |
---    9..7 juego (000 menu,001 juego,010 pausa,011 victoria,100 game over)
---
--- Los GENERIC con valores distintos a los de la placa existen solo para acelerar
--- la simulacion (vea celeste_top_tb.vhd).
--- Librerias: ieee.std_logic_1164
---------------------------------------------------------------------------------
 LIBRARY ieee;
 USE ieee.std_logic_1164.all;
---------------------------------------------------------------------------------
+
 ENTITY celeste IS
    GENERIC ( DEBOUNCE_CYCLES : INTEGER := 500000;
              BTN_ACTIVE_LOW  : BOOLEAN := TRUE;
@@ -57,7 +26,7 @@ ENTITY celeste IS
              VGA_R     : OUT STD_LOGIC_VECTOR(3 DOWNTO 0);
              VGA_G     : OUT STD_LOGIC_VECTOR(3 DOWNTO 0);
              VGA_B     : OUT STD_LOGIC_VECTOR(3 DOWNTO 0);
-             -- displays de 7 segmentos (segmentos a..g, activos en bajo)
+             -- displays de 7 segmentos 
              HEX0      : OUT STD_LOGIC_VECTOR(6 DOWNTO 0);
              HEX1      : OUT STD_LOGIC_VECTOR(6 DOWNTO 0);
              HEX2      : OUT STD_LOGIC_VECTOR(6 DOWNTO 0);
@@ -65,7 +34,7 @@ ENTITY celeste IS
              -- LEDs de depuracion
              LEDG      : OUT STD_LOGIC_VECTOR(9 DOWNTO 0) );
 END ENTITY celeste;
---------------------------------------------------------------------------------
+
 ARCHITECTURE rtl OF celeste IS
    SIGNAL rst : STD_LOGIC;
 
@@ -92,9 +61,9 @@ ARCHITECTURE rtl OF celeste IS
    -- tiempo
    SIGNAL sec_u, sec_t, sec_h  : STD_LOGIC_VECTOR(3 DOWNTO 0);
 BEGIN
-   rst <= NOT Reset_n;                  -- el pulsador de la DE0 es activo en bajo
+   rst <= NOT Reset_n;                  
 
-   ------------------------------------------------------------- Botones
+   
    btn_left_u : ENTITY work.btn_conditioner
       GENERIC MAP ( DEBOUNCE_CYCLES => DEBOUNCE_CYCLES, ACTIVE_LOW => BTN_ACTIVE_LOW )
       PORT MAP ( clk => CLOCK_50, rst => rst, btn_in => btn_left,
@@ -120,7 +89,7 @@ BEGIN
       PORT MAP ( clk => CLOCK_50, rst => rst, btn_in => btn_start,
                  btn_level => start_lv, btn_pulse => start_p );
 
-   ---------------------------------------------------------------- VGA Sync
+
    sync_u : ENTITY work.vga_sync
       GENERIC MAP ( H_DISP => H_DISP, H_FP => H_FP, H_RET => H_RET, H_BP => H_BP,
                     V_DISP => V_DISP, V_FP => V_FP, V_RET => V_RET, V_BP => V_BP )
@@ -166,17 +135,17 @@ BEGIN
                  vga_hs => VGA_HS, vga_vs => VGA_VS,
                  vga_r => VGA_R, vga_g => VGA_G, vga_b => VGA_B );
 
-   ----------------------------------------------------- Displays de 7 segmentos
+
    hex3_u : ENTITY work.seg7_decoder PORT MAP ( bcd => lives, seg => HEX3 );
    hex2_u : ENTITY work.seg7_decoder PORT MAP ( bcd => sec_h, seg => HEX2 );
    hex1_u : ENTITY work.seg7_decoder PORT MAP ( bcd => sec_t, seg => HEX1 );
    hex0_u : ENTITY work.seg7_decoder PORT MAP ( bcd => sec_u, seg => HEX0 );
-
-   ------------------------------------------------------------ LEDs de depuracion
+      
    LEDG(0)          <= on_ground;
    LEDG(1)          <= dash_avail;
    LEDG(2)          <= jumps_left;
    LEDG(3)          <= duck_on;
    LEDG(6 DOWNTO 4) <= mode_code;
    LEDG(9 DOWNTO 7) <= game_state;
+
 END ARCHITECTURE rtl;
