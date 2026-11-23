@@ -1,16 +1,7 @@
---------------------------------------------------------------------------------
--- Proyecto Final - Diseño de Sistemas Digitales (Mini videojuego estilo Celeste)
--- Archivo : game_fsm.vhd
--- Funcion : FSM principal del juego (MENU, JUEGO, PAUSA, VICTORIA, GAME OVER) y
---           contador de vidas. FSM de 2 procesos (estilo del curso).
---           state_code: 000 menu | 001 juego | 010 pausa | 011 victoria | 100 game over
--- Librerias: ieee.std_logic_1164, ieee.numeric_std
---------------------------------------------------------------------------------
 LIBRARY ieee;
 USE ieee.std_logic_1164.all;
 USE ieee.numeric_std.all;
---------------------------------------------------------------------------------
-ENTITY game_fsm IS
+
    GENERIC ( START_LIVES : INTEGER := 3 );
    PORT (    clk        : IN  STD_LOGIC;
              rst        : IN  STD_LOGIC;
@@ -22,14 +13,14 @@ ENTITY game_fsm IS
              state_code : OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
              lives      : OUT STD_LOGIC_VECTOR(3 DOWNTO 0) );
 END ENTITY game_fsm;
---------------------------------------------------------------------------------
+
 ARCHITECTURE rtl OF game_fsm IS
    TYPE state IS (st_menu, st_play, st_pause, st_win, st_over);
    SIGNAL pr_state, nx_state : state;
    SIGNAL init_s  : STD_LOGIC;
    SIGNAL lives_s : INTEGER RANGE 0 TO 9;
 BEGIN
-   -------------------------------------------------------- Sequential section
+   
    sequential : PROCESS (rst, clk)
    BEGIN
       IF (rst = '1') THEN
@@ -38,8 +29,7 @@ BEGIN
          pr_state <= nx_state;
       END IF;
    END PROCESS sequential;
-
-   ------------------------------------------------------ Combinational section
+         
    combinational : PROCESS (pr_state, start_p, goal_ev, lives_s)
    BEGIN
       CASE pr_state IS
@@ -98,7 +88,7 @@ BEGIN
 
    init <= init_s;
 
-   ---------------------------------------------------------- Contador de vidas
+   -- Contador de vidas
    lives_counter : PROCESS (clk, rst)
    BEGIN
       IF (rst = '1') THEN
