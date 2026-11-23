@@ -1,19 +1,7 @@
---------------------------------------------------------------------------------
--- Proyecto Final - Diseño de Sistemas Digitales (Mini videojuego estilo Celeste)
--- Archivo : pixel_gen.vhd
--- Funcion : Pixel Generate de la presentacion "Controlador VGA". Calcula el color
---           del pixel (pixel_x, pixel_y): fondo -> casillas del mapa (ROM
---           sincrona) -> personaje (sprite 16x16 con paleta de 8 colores, x2) ->
---           pantallas de MENU / PAUSA / VICTORIA / GAME OVER. Los sincronismos y
---           el color se registran juntos a 25 MHz (pix_ce).
---           La ROM tiene 1 ciclo de latencia y cada pixel dura 2 ciclos, por lo
---           que el dato de la casilla ya es valido cuando se captura el color.
--- Librerias: ieee.std_logic_1164, ieee.numeric_std
---------------------------------------------------------------------------------
 LIBRARY ieee;
 USE ieee.std_logic_1164.all;
 USE ieee.numeric_std.all;
---------------------------------------------------------------------------------
+
 ENTITY pixel_gen IS
    PORT (    clk         : IN  STD_LOGIC;
              pix_ce      : IN  STD_LOGIC;
@@ -37,9 +25,9 @@ ENTITY pixel_gen IS
              vga_g       : OUT STD_LOGIC_VECTOR(3 DOWNTO 0);
              vga_b       : OUT STD_LOGIC_VECTOR(3 DOWNTO 0) );
 END ENTITY pixel_gen;
---------------------------------------------------------------------------------
+
 ARCHITECTURE rtl OF pixel_gen IS
-   ------------------------------------------------------------------- Tipos
+ 
    SUBTYPE uint08 IS STD_LOGIC_VECTOR(7 DOWNTO 0);
 
    TYPE ColorT IS RECORD
@@ -52,7 +40,7 @@ ARCHITECTURE rtl OF pixel_gen IS
    TYPE SpriteT    IS ARRAY (0 TO 15) OF SpriteRowT;
    TYPE PaletteT   IS ARRAY (0 TO 7)  OF ColorT;
 
-   --------------------------------------------------------------- Colores
+   -- Colores
    CONSTANT C_BLACK  : ColorT := (R => X"00", G => X"00", B => X"00");
    CONSTANT C_WHITE  : ColorT := (R => X"FF", G => X"FF", B => X"FF");
    CONSTANT C_SKY_1  : ColorT := (R => X"10", G => X"14", B => X"2E");
@@ -66,7 +54,7 @@ ARCHITECTURE rtl OF pixel_gen IS
    CONSTANT C_SPIKE  : ColorT := (R => X"C2", G => X"C3", B => X"C7");
    CONSTANT C_HAIR_B : ColorT := (R => X"29", G => X"AD", B => X"FF");
 
-   -- Paleta del personaje (indice 0 = transparente)
+   -- Paleta del personaje 
    CONSTANT PALETTE : PaletteT := (
       0 => (R => X"00", G => X"00", B => X"00"),   -- transparente
       1 => (R => X"0B", G => X"0B", B => X"14"),   -- contorno / ojos / botas
@@ -98,8 +86,6 @@ ARCHITECTURE rtl OF pixel_gen IS
       (0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0)    -- 15
    );
 
-   ------------------------------------------------------------ Funciones
-   -- Mitad del brillo mas un desplazamiento (para oscurecer / teñir la pantalla)
    PURE FUNCTION shade (c : ColorT; r_add : INTEGER; g_add : INTEGER;
                         b_add : INTEGER) RETURN ColorT IS
       VARIABLE o : ColorT;
@@ -120,22 +106,21 @@ ARCHITECTURE rtl OF pixel_gen IS
       IF (a < b) THEN RETURN a; ELSE RETURN b; END IF;
    END FUNCTION imin;
 
-   ------------------------------------------------------------ Senales
+   -- Señales
    SIGNAL rom_row  : STD_LOGIC_VECTOR(3 DOWNTO 0);
    SIGNAL rom_col  : STD_LOGIC_VECTOR(4 DOWNTO 0);
    SIGNAL rom_tile : STD_LOGIC_VECTOR(2 DOWNTO 0);
    SIGNAL rgb_comb : ColorT;
 BEGIN
-   -- Casilla del pixel actual: fila = y / 32, columna = x / 32
+  
    rom_row <= pixel_y(8 DOWNTO 5);
    rom_col <= pixel_x(9 DOWNTO 5);
 
    tile_u : ENTITY work.tile_rom
       PORT MAP ( clk => clk, row => rom_row, col => rom_col, tile => rom_tile );
-
-   ------------------------------------------------------------------------------
+      
    -- Generacion del color
-   ------------------------------------------------------------------------------
+      
    pixel_generate : PROCESS (pixel_x, pixel_y, video_on, rom_tile, pos_x, pos_y,
                              facing_left, duck_on, dash_avail, game_state)
       VARIABLE x, y     : INTEGER;
@@ -187,7 +172,7 @@ BEGIN
             ELSIF (ly >= 3 AND ly < 8 AND lx >= 13 AND lx <= 19) THEN
                color := C_LEAF;
             END IF;
-         WHEN 4 =>                                   -- pinchos (2 por casilla)
+         WHEN 4 =>                                   -- pinchos 
             u := lx MOD 16;
             h := 2 * imin(u, 15 - u) + 2;
             IF ((31 - ly) < h) THEN
@@ -197,8 +182,7 @@ BEGIN
             NULL;
       END CASE;
 
-      -- 3) Personaje: sprite 16x16 ampliado x2 horizontal; x2 vertical de pie,
-      --    x1 agachado (queda aplastado en la mitad inferior de la caja)
+      -- 3) Personaje
       IF (duck_on = '1') THEN
          top_box := pos_y + 16;
       ELSE
@@ -226,19 +210,19 @@ BEGIN
       -- 4) Pantallas de estado
       icon := FALSE;
       CASE game_state IS
-         WHEN "000" =>                               -- MENU: pantalla oscura + play
+         WHEN "000" =>                               -- MENU
             color := shade(color, 0, 0, 0);
             dx := x - 280;
             IF (dx >= 0 AND dx <= 80 AND iabs(y - 240) <= (80 - dx) / 2) THEN
                icon := TRUE;
             END IF;
-         WHEN "010" =>                               -- PAUSA: pantalla oscura + ||
+         WHEN "010" =>                               -- PAUSA
             color := shade(color, 0, 0, 0);
             IF (y >= 200 AND y <= 280 AND
                 ((x >= 288 AND x <= 312) OR (x >= 328 AND x <= 352))) THEN
                icon := TRUE;
             END IF;
-         WHEN "011" =>                               -- VICTORIA: tinte verde + check
+         WHEN "011" =>                               -- VICTORIA
             color := shade(color, 0, 80, 0);
             dx := x - 270;
             IF (dx >= 0 AND dx <= 30 AND iabs((y - 250) - dx) <= 6) THEN
@@ -248,7 +232,7 @@ BEGIN
             IF (dx >= 0 AND dx <= 70 AND iabs((y - 280) + dx) <= 6) THEN
                icon := TRUE;
             END IF;
-         WHEN "100" =>                               -- GAME OVER: tinte rojo + X
+         WHEN "100" =>                               -- GAME OVER
             color := shade(color, 80, 0, 0);
             dx := x - 270;
             dy := y - 190;
@@ -271,9 +255,6 @@ BEGIN
       rgb_comb <= color;
    END PROCESS pixel_generate;
 
-   ------------------------------------------------------------------------------
-   -- Registro de salida a 25 MHz: sincronismos y color alineados
-   ------------------------------------------------------------------------------
    vga_out : PROCESS (clk)
    BEGIN
       IF (rising_edge(clk)) THEN
