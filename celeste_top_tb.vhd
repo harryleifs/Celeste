@@ -1,41 +1,13 @@
---------------------------------------------------------------------------------
--- Proyecto Final - Diseño de Sistemas Digitales
--- Mini videojuego de plataformas estilo "Celeste" - Terasic DE0 (Cyclone III)
---
--- Archivo : celeste_top_tb.vhd   (TESTBENCH GENERAL DEL PROYECTO)
---
--- Instancia 4 veces el top (DUT) con distintos GENERIC y un estimulo propio:
---
---   DUT A (VGA acelerado)  : mecanicas del personaje y del juego
---        menu -> juego, caminar, salto, doble salto (y 3er salto ignorado),
---        agacharse, dash en el suelo y en el aire (1 por salto, se recarga),
---        pausa (el cronometro se congela), 3 muertes por el foso -> GAME OVER,
---        volver al menu y reiniciar (vidas y tiempo).
---   DUT B (VGA acelerado)  : aparece junto a la meta -> VICTORIA.
---   DUT D (VGA acelerado)  : aparece junto a los pinchos -> pierde una vida.
---   DUT C (VGA real 640x480@60Hz): revisa el color de pixeles puntuales en el
---        MENU (pantalla oscura + icono) y en el JUEGO (cielo, casillas, sprite
---        del personaje, meta, pinchos) y los displays HEX (3 vidas, tiempo 000).
---
--- "VGA acelerado" = temporizacion VGA muy corta (41 x 19 pixeles) y 10 cuadros
--- por segundo: solo acelera la simulacion de las mecanicas; la logica es la misma.
---
--- Simulacion: ~65 ms de tiempo simulado.   ModelSim:  run -all
--- Resultado : la consola imprime "TODAS LAS PRUEBAS PASARON" o los ERROR.
--- Librerias : ieee.std_logic_1164
---------------------------------------------------------------------------------
 LIBRARY ieee;
 USE ieee.std_logic_1164.all;
---------------------------------------------------------------------------------
 ENTITY celeste_top_tb IS
 END ENTITY celeste_top_tb;
---------------------------------------------------------------------------------
 ARCHITECTURE sim OF celeste_top_tb IS
-   ------------------------------------------------------------- Tiempos
+  
    CONSTANT CLK_PERIOD : TIME := 20 ns;                 -- 50 MHz
    CONSTANT T_PIX      : TIME := 2 * CLK_PERIOD;        -- 25 MHz
 
-   -- VGA acelerado (41 x 19 pixeles por cuadro)
+   
    CONSTANT F_H_DISP : INTEGER := 31;  CONSTANT F_H_FP : INTEGER := 2;
    CONSTANT F_H_RET  : INTEGER := 3;   CONSTANT F_H_BP : INTEGER := 4;
    CONSTANT F_V_DISP : INTEGER := 15;  CONSTANT F_V_FP : INTEGER := 1;
@@ -44,28 +16,23 @@ ARCHITECTURE sim OF celeste_top_tb IS
       (F_H_DISP + F_H_FP + F_H_RET + F_H_BP + 1) *
       (F_V_DISP + F_V_FP + F_V_RET + F_V_BP + 1) * T_PIX;
 
-   -- VGA real 640x480 @ 60 Hz
-   CONSTANT H_PIXELS     : INTEGER := 640 + 16 + 96 + 48;     -- 800
-   CONSTANT V_LINES      : INTEGER := 480 + 10 + 2 + 33;      -- 525
+   CONSTANT H_PIXELS     : INTEGER := 640 + 16 + 96 + 48;     
+   CONSTANT V_LINES      : INTEGER := 480 + 10 + 2 + 33;      
    CONSTANT H_PERIOD     : TIME    := H_PIXELS * T_PIX;
    CONSTANT FRAME_PERIOD : TIME    := V_LINES * H_PERIOD;
-   CONSTANT V_SYNC_LINE  : INTEGER := 480 + 10;               -- 490
+   CONSTANT V_SYNC_LINE  : INTEGER := 480 + 10;               
 
-   ---------------------------------------------------------- Senales comunes
    SIGNAL clk_tb   : STD_LOGIC := '0';
    SIGNAL rst_n_tb : STD_LOGIC := '0';
    SIGNAL sim_done : BOOLEAN   := FALSE;
 
-   ---------------------------------------------------------------- DUT A
-   SIGNAL a_l, a_r, a_j, a_d, a_u, a_s : STD_LOGIC := '1';   -- 1 = suelto
-   SIGNAL a_hs, a_vs : STD_LOGIC;
+   SIGNAL a_l, a_r, a_j, a_d, a_u, a_s : STD_LOGIC := '1';   
    SIGNAL a_vr, a_vg, a_vb : STD_LOGIC_VECTOR(3 DOWNTO 0);
    SIGNAL a_hex0, a_hex1, a_hex2, a_hex3 : STD_LOGIC_VECTOR(6 DOWNTO 0);
    SIGNAL a_led : STD_LOGIC_VECTOR(9 DOWNTO 0);
    SIGNAL a_done : BOOLEAN := FALSE;
    SIGNAL a_errs : INTEGER := 0;
 
-   ---------------------------------------------------------------- DUT B
    SIGNAL b_l, b_r, b_j, b_d, b_u, b_s : STD_LOGIC := '1';
    SIGNAL b_hs, b_vs : STD_LOGIC;
    SIGNAL b_vr, b_vg, b_vb : STD_LOGIC_VECTOR(3 DOWNTO 0);
@@ -74,7 +41,6 @@ ARCHITECTURE sim OF celeste_top_tb IS
    SIGNAL b_done : BOOLEAN := FALSE;
    SIGNAL b_errs : INTEGER := 0;
 
-   ---------------------------------------------------------------- DUT D
    SIGNAL d_l, d_r, d_j, d_d, d_u, d_s : STD_LOGIC := '1';
    SIGNAL d_hs, d_vs : STD_LOGIC;
    SIGNAL d_vr, d_vg, d_vb : STD_LOGIC_VECTOR(3 DOWNTO 0);
@@ -83,7 +49,6 @@ ARCHITECTURE sim OF celeste_top_tb IS
    SIGNAL d_done : BOOLEAN := FALSE;
    SIGNAL d_errs : INTEGER := 0;
 
-   ---------------------------------------------------------------- DUT C
    SIGNAL c_l, c_r, c_j, c_d, c_u, c_s : STD_LOGIC := '1';
    SIGNAL c_hs, c_vs : STD_LOGIC;
    SIGNAL c_vr, c_vg, c_vb : STD_LOGIC_VECTOR(3 DOWNTO 0);
@@ -92,8 +57,6 @@ ARCHITECTURE sim OF celeste_top_tb IS
    SIGNAL c_done : BOOLEAN := FALSE;
    SIGNAL c_errs : INTEGER := 0;
 
-   ----------------------------------------------------------- Utilidades
-   -- Patron de 7 segmentos (activo en bajo) de un digito
    FUNCTION seg7 (n : INTEGER) RETURN STD_LOGIC_VECTOR IS
    BEGIN
       CASE n IS
@@ -106,7 +69,6 @@ ARCHITECTURE sim OF celeste_top_tb IS
       END CASE;
    END FUNCTION seg7;
 
-   -- Pulsa un boton (a nivel bajo) durante t
    PROCEDURE press (SIGNAL b : OUT STD_LOGIC; CONSTANT t : IN TIME) IS
    BEGIN
       b <= '0';
@@ -114,7 +76,6 @@ ARCHITECTURE sim OF celeste_top_tb IS
       b <= '1';
    END PROCEDURE press;
 
-   -- Compara una porcion de los LEDs de depuracion
    PROCEDURE check_led (SIGNAL led : IN STD_LOGIC_VECTOR(9 DOWNTO 0);
                         CONSTANT hi : IN INTEGER; CONSTANT lo : IN INTEGER;
                         CONSTANT val : IN STD_LOGIC_VECTOR;
@@ -129,7 +90,6 @@ ARCHITECTURE sim OF celeste_top_tb IS
       END IF;
    END PROCEDURE check_led;
 
-   -- Espera (hasta max_f cuadros) a que una porcion de los LEDs valga val
    PROCEDURE wait_led (SIGNAL led : IN STD_LOGIC_VECTOR(9 DOWNTO 0);
                        CONSTANT hi : IN INTEGER; CONSTANT lo : IN INTEGER;
                        CONSTANT val : IN STD_LOGIC_VECTOR;
@@ -153,7 +113,6 @@ ARCHITECTURE sim OF celeste_top_tb IS
       END IF;
    END PROCEDURE wait_led;
 
-   -- Espera a que un display muestre el digito n
    PROCEDURE wait_hex (SIGNAL hex : IN STD_LOGIC_VECTOR(6 DOWNTO 0);
                        CONSTANT n : IN INTEGER;
                        CONSTANT max_f : IN INTEGER;
@@ -188,11 +147,8 @@ ARCHITECTURE sim OF celeste_top_tb IS
          REPORT "OK     " & name SEVERITY NOTE;
       END IF;
    END PROCEDURE check_hex;
-
---------------------------------------------------------------------------------
-BEGIN
-
-   ---------------------------------------------------------------------- Reloj
+         
+   BEGIN
    clk_gen : PROCESS
    BEGIN
       WHILE NOT sim_done LOOP
@@ -203,8 +159,6 @@ BEGIN
       END LOOP;
       WAIT;
    END PROCESS clk_gen;
-
-   ---------------------------------------------------------------------- Reset
    rst_gen : PROCESS
    BEGIN
       rst_n_tb <= '0';
@@ -212,8 +166,6 @@ BEGIN
       rst_n_tb <= '1';
       WAIT;
    END PROCESS rst_gen;
-
-   -------------------------------------------------------------------- Watchdog
    watchdog : PROCESS
    BEGIN
       WAIT UNTIL sim_done FOR 120 ms;
@@ -223,9 +175,6 @@ BEGIN
       WAIT;
    END PROCESS watchdog;
 
-   ------------------------------------------------------------------------------
-   -- DUTs
-   ------------------------------------------------------------------------------
    dut_a : ENTITY work.celeste
       GENERIC MAP ( DEBOUNCE_CYCLES => 4, FRAMES_PER_SEC => 10,
                     H_DISP => F_H_DISP, H_FP => F_H_FP, H_RET => F_H_RET, H_BP => F_H_BP,
@@ -270,12 +219,11 @@ BEGIN
                  HEX0 => c_hex0, HEX1 => c_hex1, HEX2 => c_hex2, HEX3 => c_hex3,
                  LEDG => c_led );
 
-   ------------------------------------------------------------------------------
    -- ESTIMULO A: mecanicas del personaje y del juego
    -- LEDG: 0 suelo | 1 dash | 2 doble salto | 3 agachado | 6..4 modo | 9..7 juego
    -- modo: 000 suelo, 001 agachado, 010 salto, 011 caida, 100 dash
    -- juego: 000 menu, 001 juego, 010 pausa, 011 victoria, 100 game over
-   ------------------------------------------------------------------------------
+
    stim_a : PROCESS
       VARIABLE errs : INTEGER := 0;
       VARIABLE hv   : STD_LOGIC_VECTOR(6 DOWNTO 0);
@@ -397,9 +345,7 @@ BEGIN
       WAIT;
    END PROCESS stim_a;
 
-   ------------------------------------------------------------------------------
    -- ESTIMULO B: victoria (aparece junto a la meta)
-   ------------------------------------------------------------------------------
    stim_b : PROCESS
       VARIABLE errs : INTEGER := 0;
    BEGIN
@@ -421,10 +367,10 @@ BEGIN
       WAIT;
    END PROCESS stim_b;
 
-   ------------------------------------------------------------------------------
-   -- ESTIMULO D: pinchos (aparece junto a los pinchos)
-   ------------------------------------------------------------------------------
-   stim_d : PROCESS
+   
+   -- ESTIMULO C: pinchos (aparece junto a los pinchos)
+   
+   stim_c : PROCESS
       VARIABLE errs : INTEGER := 0;
    BEGIN
       WAIT FOR 500 ns;
@@ -442,14 +388,13 @@ BEGIN
       d_errs <= errs;
       d_done <= TRUE;
       WAIT;
-   END PROCESS stim_d;
+   END PROCESS stim_c;
 
-   ------------------------------------------------------------------------------
-   -- ESTIMULO C: video real. Revisa el color de pixeles puntuales.
+   -- ESTIMULO D: video real. Revisa el color de pixeles puntuales.
    -- Referencia: al bajar VSync sale el pixel (0, 490). El pixel (x, y) sale
    -- (y - 490) lineas y x pixeles despues (en el cuadro siguiente si y < 490).
-   ------------------------------------------------------------------------------
-   stim_c : PROCESS
+
+   stim_d : PROCESS
       VARIABLE errs : INTEGER := 0;
       VARIABLE t_vs : TIME;
 
@@ -514,9 +459,7 @@ BEGIN
       WAIT;
    END PROCESS stim_c;
 
-   ------------------------------------------------------------------------------
-   -- Resumen final
-   ------------------------------------------------------------------------------
+   -- Resumen 
    summary : PROCESS
    BEGIN
       WAIT UNTIL a_done AND b_done AND c_done AND d_done;
