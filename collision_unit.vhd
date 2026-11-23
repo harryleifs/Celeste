@@ -1,20 +1,6 @@
---------------------------------------------------------------------------------
--- Proyecto Final - Diseño de Sistemas Digitales (Mini videojuego estilo Celeste)
--- Archivo : collision_unit.vhd
--- Funcion : Consulta de colisiones. Dado un rectangulo de 32 px de ancho y alto
---           box_h con esquina superior izquierda (box_x, box_y), revisa sus 4
---           esquinas en la ROM del mapa y reporta:
---              solid : toca roca (o sale por los lados / el techo)
---              goal  : toca la meta   spike : toca pinchos   pit : cayo al foso
---           FSM de 2 procesos (pr_state / nx_state) como en el curso.
---           Uso: pulso de 1 ciclo en req con la caja estable; el resultado es
---           valido cuando done = '1' (1 ciclo).
--- Librerias: ieee.std_logic_1164, ieee.numeric_std
---------------------------------------------------------------------------------
 LIBRARY ieee;
 USE ieee.std_logic_1164.all;
 USE ieee.numeric_std.all;
---------------------------------------------------------------------------------
 ENTITY collision_unit IS
    PORT (    clk   : IN  STD_LOGIC;
              rst   : IN  STD_LOGIC;
@@ -28,12 +14,12 @@ ENTITY collision_unit IS
              spike : OUT STD_LOGIC;
              pit   : OUT STD_LOGIC );
 END ENTITY collision_unit;
---------------------------------------------------------------------------------
+   
 ARCHITECTURE rtl OF collision_unit IS
    TYPE state IS (st_idle, st_addr, st_read, st_done);
    SIGNAL pr_state, nx_state : state;
 
-   SIGNAL k       : INTEGER RANGE 0 TO 3;       -- esquina que se esta revisando
+   SIGNAL k       : INTEGER RANGE 0 TO 3;      
    SIGNAL cx, cy  : INTEGER RANGE -64 TO 1100;
    SIGNAL in_map  : STD_LOGIC;
    SIGNAL rom_row : STD_LOGIC_VECTOR(3 DOWNTO 0);
@@ -41,8 +27,8 @@ ARCHITECTURE rtl OF collision_unit IS
    SIGNAL rom_tile: STD_LOGIC_VECTOR(2 DOWNTO 0);
 
    SIGNAL f_solid, f_goal, f_spike, f_pit : STD_LOGIC;
+
 BEGIN
-   ------------------------------------------------ COORDENADAS DE LA ESQUINA k
    cx <= box_x          WHEN (k = 0 OR k = 2) ELSE box_x + 31;
    cy <= box_y          WHEN (k = 0 OR k = 1) ELSE box_y + box_h - 1;
 
@@ -56,7 +42,6 @@ BEGIN
    rom_u : ENTITY work.tile_rom
       PORT MAP ( clk => clk, row => rom_row, col => rom_col, tile => rom_tile );
 
-   -------------------------------------------------------- Sequential section
    sequential : PROCESS (rst, clk)
    BEGIN
       IF (rst = '1') THEN
@@ -66,7 +51,6 @@ BEGIN
       END IF;
    END PROCESS sequential;
 
-   ------------------------------------------------------ Combinational section
    combinational : PROCESS (pr_state, req, k)
    BEGIN
       CASE pr_state IS
@@ -77,10 +61,10 @@ BEGIN
             ELSE
                nx_state <= st_idle;
             END IF;
-         WHEN st_addr =>                -- la ROM captura la direccion
+         WHEN st_addr =>                
             done     <= '0';
             nx_state <= st_read;
-         WHEN st_read =>                -- el dato de la ROM ya es valido
+         WHEN st_read =>                
             done <= '0';
             IF (k = 3) THEN
                nx_state <= st_done;
@@ -92,8 +76,7 @@ BEGIN
             nx_state <= st_idle;
       END CASE;
    END PROCESS combinational;
-
-   -------------------------------------------------- Datapath (banderas y k)
+         
    datapath : PROCESS (clk, rst)
       VARIABLE t : INTEGER RANGE 0 TO 7;
    BEGIN
