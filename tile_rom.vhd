@@ -50,8 +50,6 @@ ARCHITECTURE rtl OF tile_rom IS
    SIGNAL   addr      : STD_LOGIC_VECTOR(8 DOWNTO 0);
 BEGIN
    addr <= row & col;
-
-   --READ
    read_process : PROCESS (clk)
    BEGIN
       IF (rising_edge(clk)) THEN
