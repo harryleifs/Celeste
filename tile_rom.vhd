@@ -1,32 +1,20 @@
---------------------------------------------------------------------------------
--- Proyecto Final - Diseño de Sistemas Digitales (Mini videojuego estilo Celeste)
--- Archivo : tile_rom.vhd
--- Funcion : ROM SINCRONA con el mapa del nivel (20 x 15 casillas de 32 x 32 px).
---           Se infiere en bloques M9K de la Cyclone III (estilo "Synchronous
---           ROM" del curso: constante + registro de salida).
---           Codigo de casilla: 0 vacio | 1 roca | 2 roca con nieve | 3 fresa
---           (meta) | 4 pinchos.
---           Direccion = fila(4 bits) & columna(5 bits). Salida con 1 ciclo de
---           latencia.
--- Librerias: ieee.std_logic_1164, ieee.numeric_std
---------------------------------------------------------------------------------
 LIBRARY ieee;
 USE ieee.std_logic_1164.all;
 USE ieee.numeric_std.all;
---------------------------------------------------------------------------------
+
 ENTITY tile_rom IS
    PORT (    clk  : IN  STD_LOGIC;
              row  : IN  STD_LOGIC_VECTOR(3 DOWNTO 0);
              col  : IN  STD_LOGIC_VECTOR(4 DOWNTO 0);
              tile : OUT STD_LOGIC_VECTOR(2 DOWNTO 0) );
 END ENTITY tile_rom;
---------------------------------------------------------------------------------
+
 ARCHITECTURE rtl OF tile_rom IS
    TYPE map_row_t IS ARRAY (0 TO 19) OF INTEGER RANGE 0 TO 7;
    TYPE map_t     IS ARRAY (0 TO 14) OF map_row_t;
    TYPE mem_type  IS ARRAY (0 TO 511) OF STD_LOGIC_VECTOR(2 DOWNTO 0);
 
-   -- Nivel (fila 0 = arriba). Columnas 0..19.
+
    CONSTANT LEVEL_MAP : map_t := (
       --  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9      fila
       (0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0),   --  0
@@ -46,7 +34,6 @@ ARCHITECTURE rtl OF tile_rom IS
       (1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1)    -- 14  base
    );
 
-   -- Se copia el mapa a una memoria plana de 512 palabras (direccion = fila & col)
    FUNCTION init_rom RETURN mem_type IS
       VARIABLE rom : mem_type := (OTHERS => (OTHERS => '0'));
    BEGIN
