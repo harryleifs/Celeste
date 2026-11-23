@@ -1,17 +1,7 @@
---------------------------------------------------------------------------------
--- Proyecto Final - Diseño de Sistemas Digitales (Mini videojuego estilo Celeste)
--- Archivo : vga_sync.vhd
--- Funcion : Sincronizacion VGA (Image Sync de la presentacion). Genera pix_ce
---           (habilitador de 25 MHz a partir de 50 MHz), HSync, VSync, VideoOn,
---           PixelX, PixelY y frame_tick (1 pulso por cuadro, al iniciar el
---           blanking vertical). Por defecto 640x480 @ 60 Hz.
---           Los GENERIC permiten acortar la temporizacion solo para simulacion.
--- Librerias: ieee.std_logic_1164, ieee.numeric_std
---------------------------------------------------------------------------------
 LIBRARY ieee;
 USE ieee.std_logic_1164.all;
 USE ieee.numeric_std.all;
---------------------------------------------------------------------------------
+
 ENTITY vga_sync IS
    GENERIC ( H_DISP : INTEGER := 639;  H_FP : INTEGER := 16;
              H_RET  : INTEGER := 96;   H_BP : INTEGER := 48;
@@ -19,7 +9,7 @@ ENTITY vga_sync IS
              V_RET  : INTEGER := 2;    V_BP : INTEGER := 33 );
    PORT (    clk        : IN  STD_LOGIC;
              rst        : IN  STD_LOGIC;
-             pix_ce     : OUT STD_LOGIC;                      -- habilitador de pixel
+             pix_ce     : OUT STD_LOGIC;                      
              hsync      : OUT STD_LOGIC;
              vsync      : OUT STD_LOGIC;
              video_on   : OUT STD_LOGIC;
@@ -27,7 +17,7 @@ ENTITY vga_sync IS
              pixel_y    : OUT STD_LOGIC_VECTOR(9 DOWNTO 0);
              frame_tick : OUT STD_LOGIC );
 END ENTITY vga_sync;
---------------------------------------------------------------------------------
+
 ARCHITECTURE rtl OF vga_sync IS
    CONSTANT H_MAX : INTEGER := H_DISP + H_FP + H_RET + H_BP;
    CONSTANT V_MAX : INTEGER := V_DISP + V_FP + V_RET + V_BP;
@@ -38,7 +28,7 @@ ARCHITECTURE rtl OF vga_sync IS
    SIGNAL tick_r    : STD_LOGIC;
    SIGNAL video_on_i: STD_LOGIC;
 BEGIN
-   ------------------------------------------------------ HABILITADOR DE PIXEL
+   -- HABILITADOR DE PIXEL
    ce_gen : PROCESS (clk, rst)
    BEGIN
       IF (rst = '1') THEN
@@ -50,7 +40,7 @@ BEGIN
 
    pix_ce <= ce_r;
 
-   ------------------------------------------------------- CONTADORES H Y V
+   --CONTADORES H Y V
    counters : PROCESS (clk, rst)
    BEGIN
       IF (rst = '1') THEN
@@ -72,7 +62,7 @@ BEGIN
       END IF;
    END PROCESS counters;
 
-   ------------------------------------------------- SINCRONISMOS (ACTIVOS EN BAJO)
+   --SINCRONISMOS
    hsync <= '0' WHEN (hcount > H_DISP + H_FP) AND (hcount <= H_DISP + H_FP + H_RET)
                 ELSE '1';
    vsync <= '0' WHEN (vcount > V_DISP + V_FP) AND (vcount <= V_DISP + V_FP + V_RET)
@@ -86,7 +76,7 @@ BEGIN
    pixel_y <= STD_LOGIC_VECTOR(to_unsigned(vcount, 10)) WHEN video_on_i = '1'
               ELSE (OTHERS => '0');
 
-   ------------------------------------------- PULSO POR CUADRO (INICIO DEL BLANKING)
+   -- PULSO POR CUADRO 
    frame_pulse : PROCESS (clk, rst)
    BEGIN
       IF (rst = '1') THEN
