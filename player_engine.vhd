@@ -1,44 +1,20 @@
---------------------------------------------------------------------------------
--- Proyecto Final - Diseño de Sistemas Digitales (Mini videojuego estilo Celeste)
--- Archivo : player_engine.vhd
--- Funcion : Motor de fisicas del personaje (una actualizacion por cuadro VGA).
---
---   FSM DE MOVIMIENTO (pr_state / nx_state, 2 procesos como en el curso):
---      st_ground : en el suelo           st_duck : agachado (hitbox 32x16)
---      st_jump   : subiendo (salto y doble salto)
---      st_fall   : cayendo               st_dash : impulso rapido direccional
---
---   FSM DE FASES (pr_phase / nx_phase): secuencia del cuadro
---      PREP -> X (mover y colisionar) -> Y -> G (piso) -> S (espacio para
---      pararse) -> H (pinchos / meta / foso) -> END
---   Cada consulta usa collision_unit (ROM del mapa).
---
---   Reglas: gravedad 1 px/cuadro^2 (caida max. 12), salto 15 px/cuadro, doble
---   salto (1 en el aire, se recarga al tocar suelo), dash 12 px/cuadro por 8
---   cuadros (se recarga al tocar suelo), caminar 4 px/cuadro, gatear 2 px/cuadro.
---   Dash direccional: izquierda/derecha, arriba (jump presionado) o abajo (duck
---   presionado); sin direccion usa hacia donde mira el personaje.
---   Hitbox del personaje: 32 x 32 px (agachado: 32 x 16, parte inferior).
---
--- Librerias: ieee.std_logic_1164, ieee.numeric_std
---------------------------------------------------------------------------------
 LIBRARY ieee;
 USE ieee.std_logic_1164.all;
 USE ieee.numeric_std.all;
---------------------------------------------------------------------------------
+
 ENTITY player_engine IS
    GENERIC ( SPAWN_X : INTEGER := 64;
              SPAWN_Y : INTEGER := 384 );
    PORT (    clk          : IN  STD_LOGIC;
              rst          : IN  STD_LOGIC;
-             frame_tick   : IN  STD_LOGIC;     -- 1 pulso por cuadro VGA
-             run_en       : IN  STD_LOGIC;     -- 1 mientras se juega
-             init         : IN  STD_LOGIC;     -- pulso: colocar en el inicio
-             btn_left     : IN  STD_LOGIC;     -- niveles (1 = presionado)
+             frame_tick   : IN  STD_LOGIC;     
+             run_en       : IN  STD_LOGIC;     
+             init         : IN  STD_LOGIC;     
+             btn_left     : IN  STD_LOGIC;     
              btn_right    : IN  STD_LOGIC;
              btn_duck     : IN  STD_LOGIC;
              btn_jump_lv  : IN  STD_LOGIC;
-             jump_pulse   : IN  STD_LOGIC;     -- pulsos de 1 ciclo
+             jump_pulse   : IN  STD_LOGIC;     
              dash_pulse   : IN  STD_LOGIC;
              pos_x        : OUT INTEGER RANGE -64 TO 1023;
              pos_y        : OUT INTEGER RANGE -64 TO 1023;
@@ -48,12 +24,12 @@ ENTITY player_engine IS
              on_ground_o  : OUT STD_LOGIC;
              jumps_left_o : OUT STD_LOGIC;
              mode_code    : OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
-             goal_ev      : OUT STD_LOGIC;     -- pulso: toco la meta
-             dead_ev      : OUT STD_LOGIC );   -- pulso: murio (pinchos / foso)
+             goal_ev      : OUT STD_LOGIC;     
+             dead_ev      : OUT STD_LOGIC );   
 END ENTITY player_engine;
---------------------------------------------------------------------------------
+
 ARCHITECTURE rtl OF player_engine IS
-   ------------------------------------------------------------- Constantes
+   -- Constantes
    CONSTANT WALK_SPD    : INTEGER := 4;
    CONSTANT CRAWL_SPD   : INTEGER := 2;
    CONSTANT JUMP_V      : INTEGER := 15;
@@ -62,7 +38,7 @@ ARCHITECTURE rtl OF player_engine IS
    CONSTANT DASH_SPD    : INTEGER := 12;
    CONSTANT DASH_FRAMES : INTEGER := 8;
 
-   ---------------------------------------------------------------- Estados
+   -- Estados
    TYPE mode_t  IS (st_ground, st_duck, st_jump, st_fall, st_dash);
    TYPE phase_t IS (ph_idle, ph_prep,
                     ph_x_req, ph_x_wait, ph_y_req, ph_y_wait,
@@ -72,7 +48,7 @@ ARCHITECTURE rtl OF player_engine IS
    SIGNAL pr_state, nx_state : mode_t;
    SIGNAL pr_phase, nx_phase : phase_t;
 
-   -------------------------------------------------------------- Registros
+   -- Registros
    SIGNAL px, py       : INTEGER RANGE -64 TO 1023;
    SIGNAL vx, vy       : INTEGER RANGE -64 TO 64;
    SIGNAL dash_dx      : INTEGER RANGE -1 TO 1;
@@ -89,7 +65,7 @@ ARCHITECTURE rtl OF player_engine IS
    SIGNAL goal_r       : STD_LOGIC;
    SIGNAL respawn_r    : STD_LOGIC;
 
-   ------------------------------------------------- Senales de control (comb.)
+   -- Senales de control
    SIGNAL act_gjump, act_ajump, act_dash : STD_LOGIC;
    SIGNAL commit       : STD_LOGIC;
    SIGNAL force_mode   : STD_LOGIC;
@@ -97,7 +73,7 @@ ARCHITECTURE rtl OF player_engine IS
    SIGNAL tent_x       : INTEGER RANGE -128 TO 1100;
    SIGNAL tent_y       : INTEGER RANGE -128 TO 1100;
 
-   --------------------------------------------------- Interfaz collision_unit
+   -- Interfaz collision_unit
    SIGNAL cu_req   : STD_LOGIC;
    SIGNAL cu_x     : INTEGER RANGE -64 TO 1023;
    SIGNAL cu_y     : INTEGER RANGE -64 TO 1023;
@@ -108,7 +84,7 @@ ARCHITECTURE rtl OF player_engine IS
    SIGNAL cu_spike : STD_LOGIC;
    SIGNAL cu_pit   : STD_LOGIC;
 BEGIN
-   ------------------------------------------------------ Consulta de colisiones
+   -- Consulta de colisiones
    coll_u : ENTITY work.collision_unit
       PORT MAP ( clk => clk, rst => rst, req => cu_req,
                  box_x => cu_x, box_y => cu_y, box_h => cu_h,
@@ -122,9 +98,7 @@ BEGIN
    commit     <= '1' WHEN (pr_phase = ph_prep) ELSE '0';
    force_mode <= init OR respawn_r;
 
-   ------------------------------------------------------------------------------
-   -- FSM DE MOVIMIENTO - Sequential section
-   ------------------------------------------------------------------------------
+   -- FSM DE MOVIMIENTO 
    mode_sequential : PROCESS (rst, clk)
    BEGIN
       IF (rst = '1') THEN
@@ -137,10 +111,6 @@ BEGIN
          END IF;
       END IF;
    END PROCESS mode_sequential;
-
-   ------------------------------------------------------------------------------
-   -- FSM DE MOVIMIENTO - Combinational section
-   ------------------------------------------------------------------------------
    mode_combinational : PROCESS (pr_state, jump_lat, dash_lat, btn_duck, on_gnd,
                                  vy, dash_cnt, jumps_l, dash_av, stand_ok)
    BEGIN
@@ -218,10 +188,8 @@ BEGIN
             END IF;
       END CASE;
    END PROCESS mode_combinational;
-
-   ------------------------------------------------------------------------------
-   -- FSM DE FASES - Sequential section
-   ------------------------------------------------------------------------------
+         
+   -- FSM DE FASES
    phase_sequential : PROCESS (rst, clk)
    BEGIN
       IF (rst = '1') THEN
@@ -230,10 +198,7 @@ BEGIN
          pr_phase <= nx_phase;
       END IF;
    END PROCESS phase_sequential;
-
-   ------------------------------------------------------------------------------
-   -- FSM DE FASES - Combinational section
-   ------------------------------------------------------------------------------
+         
    phase_combinational : PROCESS (pr_phase, frame_tick, run_en, cu_done)
    BEGIN
       CASE pr_phase IS
@@ -263,9 +228,6 @@ BEGIN
       END CASE;
    END PROCESS phase_combinational;
 
-   ------------------------------------------------------------------------------
-   -- Caja que se consulta en cada fase (x, y, alto)
-   ------------------------------------------------------------------------------
    probe_mux : PROCESS (pr_phase, px, py, tent_x, tent_y, box_h)
    BEGIN
       cu_req <= '0';
@@ -285,10 +247,8 @@ BEGIN
          WHEN OTHERS    => NULL;
       END CASE;
    END PROCESS probe_mux;
-
-   ------------------------------------------------------------------------------
-   -- Datapath: posicion, velocidades, banderas
-   ------------------------------------------------------------------------------
+         
+   -- Datapath
    datapath : PROCESS (clk, rst)
       VARIABLE rgt, lft : BOOLEAN;
       VARIABLE ndx, ndy : INTEGER RANGE -1 TO 1;
@@ -308,7 +268,7 @@ BEGIN
          respawn_r <= '0';
 
          IF (init = '1') THEN
-            -------------------------------------------- nueva partida
+            -- nueva partida
             px <= SPAWN_X;  py <= SPAWN_Y;
             vx <= 0;        vy <= 0;
             dash_dx <= 1;   dash_dy <= 0;   dash_cnt <= 0;
@@ -317,7 +277,7 @@ BEGIN
          ELSE
             CASE pr_phase IS
 
-               ------------------------------------------------ PREP
+               -- PREP
                WHEN ph_prep =>
                   rgt := (btn_right = '1' AND btn_left = '0');
                   lft := (btn_left = '1' AND btn_right = '0');
@@ -328,7 +288,7 @@ BEGIN
                      facing_l <= '0';
                   END IF;
 
-                  -- direccion del dash (solo se usa si inicia un dash)
+                  -- direccion del dash 
                   ndx := 0;  ndy := 0;
                   IF (rgt) THEN ndx := 1; ELSIF (lft) THEN ndx := -1; END IF;
                   IF (btn_jump_lv = '1' AND btn_duck = '0') THEN
@@ -386,7 +346,7 @@ BEGIN
                   jump_lat <= '0';
                   dash_lat <= '0';
 
-               ------------------------------------------------ X
+               -- X
                WHEN ph_x_wait =>
                   IF (cu_done = '1') THEN
                      IF (cu_solid = '1') THEN
@@ -407,7 +367,7 @@ BEGIN
                      END IF;
                   END IF;
 
-               ------------------------------------------------ Y
+               -- Y
                WHEN ph_y_wait =>
                   IF (cu_done = '1') THEN
                      IF (cu_solid = '1') THEN
@@ -428,7 +388,7 @@ BEGIN
                      END IF;
                   END IF;
 
-               ------------------------------------------------ G (piso)
+               -- G (piso)
                WHEN ph_g_wait =>
                   IF (cu_done = '1') THEN
                      IF (cu_solid = '1' AND vy >= 0) THEN
@@ -442,7 +402,7 @@ BEGIN
                      END IF;
                   END IF;
 
-               ------------------------------------------------ S (pararse)
+               -- S (pararse)
                WHEN ph_s_wait =>
                   IF (cu_done = '1') THEN
                      IF (pr_state = st_duck) THEN
@@ -452,7 +412,7 @@ BEGIN
                      END IF;
                   END IF;
 
-               ------------------------------------------------ H (peligros)
+               -- H (peligros)
                WHEN ph_h_wait =>
                   IF (cu_done = '1') THEN
                      IF (cu_spike = '1' OR cu_pit = '1') THEN
@@ -471,8 +431,6 @@ BEGIN
                WHEN OTHERS =>
                   NULL;
             END CASE;
-
-            -- Captura de pulsos de los botones (se consumen en el siguiente cuadro)
             IF (run_en = '0') THEN
                jump_lat <= '0';
                dash_lat <= '0';
@@ -484,7 +442,7 @@ BEGIN
       END IF;
    END PROCESS datapath;
 
-   ------------------------------------------------------------------- Salidas
+   -- Salidas
    pos_x        <= px;
    pos_y        <= py;
    facing_left  <= facing_l;
