@@ -1,13 +1,6 @@
---------------------------------------------------------------------------------
--- Proyecto Final - Diseño de Sistemas Digitales (Mini videojuego estilo Celeste)
--- Archivo : time_counter.vhd
--- Funcion : Cronometro en segundos (3 digitos BCD, 000..999). Cuenta cuadros VGA
---           (frame_tick) mientras ena = '1' y genera un tick por segundo.
--- Librerias: ieee.std_logic_1164
---------------------------------------------------------------------------------
 LIBRARY ieee;
 USE ieee.std_logic_1164.all;
---------------------------------------------------------------------------------
+
 ENTITY time_counter IS
    GENERIC ( FRAMES_PER_SEC : INTEGER := 60 );
    PORT (    clk        : IN  STD_LOGIC;
@@ -19,7 +12,7 @@ ENTITY time_counter IS
              sec_t      : OUT STD_LOGIC_VECTOR(3 DOWNTO 0);   -- decenas
              sec_h      : OUT STD_LOGIC_VECTOR(3 DOWNTO 0) ); -- centenas
 END ENTITY time_counter;
---------------------------------------------------------------------------------
+
 ARCHITECTURE rtl OF time_counter IS
    SIGNAL frame_cnt : INTEGER RANGE 0 TO FRAMES_PER_SEC - 1;
    SIGNAL sec_tick  : STD_LOGIC;
@@ -29,7 +22,7 @@ ARCHITECTURE rtl OF time_counter IS
    SIGNAL ena_t     : STD_LOGIC;
    SIGNAL ena_h     : STD_LOGIC;
 BEGIN
-   ---------------------------------------------------- DIVISOR CUADROS -> SEGUNDO
+
    frame_divider : PROCESS (clk, rst)
    BEGIN
       IF (rst = '1') THEN
@@ -53,7 +46,7 @@ BEGIN
    ena_t <= sec_tick AND max_u;
    ena_h <= sec_tick AND max_u AND max_t;
 
-   ------------------------------------------------------------- DIGITOS BCD
+   -- DIGITOS BCD
    units_digit : ENTITY work.bcd_counter
       GENERIC MAP ( LIMIT => 9 )
       PORT MAP ( clk => clk, rst => rst, syn_clr => clr, ena => sec_tick,
