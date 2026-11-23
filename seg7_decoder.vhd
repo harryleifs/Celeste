@@ -1,21 +1,14 @@
---------------------------------------------------------------------------------
--- Proyecto Final - Diseño de Sistemas Digitales (Mini videojuego estilo Celeste)
--- Archivo : seg7_decoder.vhd
--- Funcion : Decodificador BCD -> 7 segmentos (seg(0)=a ... seg(6)=g).
---           ACTIVE_LOW = TRUE para los HEX de la DE0 (segmento encendido en '0').
--- Librerias: ieee.std_logic_1164
---------------------------------------------------------------------------------
 LIBRARY ieee;
 USE ieee.std_logic_1164.all;
---------------------------------------------------------------------------------
+
 ENTITY seg7_decoder IS
    GENERIC ( ACTIVE_LOW : BOOLEAN := TRUE );
    PORT (    bcd : IN  STD_LOGIC_VECTOR(3 DOWNTO 0);
              seg : OUT STD_LOGIC_VECTOR(6 DOWNTO 0) );
 END ENTITY seg7_decoder;
---------------------------------------------------------------------------------
+
 ARCHITECTURE rtl OF seg7_decoder IS
-   SIGNAL code : STD_LOGIC_VECTOR(6 DOWNTO 0);     -- activo en bajo: g f e d c b a
+   SIGNAL code : STD_LOGIC_VECTOR(6 DOWNTO 0);     
 BEGIN
    decode : PROCESS (bcd)
    BEGIN
