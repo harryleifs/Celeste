@@ -1,23 +1,16 @@
---------------------------------------------------------------------------------
--- Proyecto Final - Diseño de Sistemas Digitales (Mini videojuego estilo Celeste)
--- Archivo : btn_conditioner.vhd
--- Funcion : Acondiciona un pulsador externo: sincroniza (2 FF), elimina rebotes
---           y entrega el nivel estable y un pulso de 1 ciclo al presionar.
--- Librerias: ieee.std_logic_1164
---------------------------------------------------------------------------------
 LIBRARY ieee;
 USE ieee.std_logic_1164.all;
---------------------------------------------------------------------------------
+
 ENTITY btn_conditioner IS
    GENERIC ( DEBOUNCE_CYCLES : INTEGER := 500000;   -- 10 ms a 50 MHz
-             ACTIVE_LOW      : BOOLEAN := TRUE );   -- pulsador a GND con pull-up
+             ACTIVE_LOW      : BOOLEAN := TRUE );   
    PORT (    clk       : IN  STD_LOGIC;
              rst       : IN  STD_LOGIC;
-             btn_in    : IN  STD_LOGIC;             -- pin externo
-             btn_level : OUT STD_LOGIC;             -- nivel estable (1 = presionado)
-             btn_pulse : OUT STD_LOGIC );           -- pulso al presionar
+             btn_in    : IN  STD_LOGIC;            
+             btn_level : OUT STD_LOGIC;            
+             btn_pulse : OUT STD_LOGIC );          
 END ENTITY btn_conditioner;
---------------------------------------------------------------------------------
+
 ARCHITECTURE rtl OF btn_conditioner IS
    SIGNAL raw      : STD_LOGIC;
    SIGNAL sync_1   : STD_LOGIC;
@@ -26,10 +19,10 @@ ARCHITECTURE rtl OF btn_conditioner IS
    SIGNAL stable_d : STD_LOGIC;
    SIGNAL cnt      : INTEGER RANGE 0 TO DEBOUNCE_CYCLES;
 BEGIN
-   -- Polaridad: internamente 1 = presionado
+
    raw <= (NOT btn_in) WHEN ACTIVE_LOW ELSE btn_in;
 
-   -------------------------------------------------------------- SINCRONIZADOR
+
    synchronizer : PROCESS (clk, rst)
    BEGIN
       IF (rst = '1') THEN
@@ -41,7 +34,7 @@ BEGIN
       END IF;
    END PROCESS synchronizer;
 
-   ------------------------------------------------------------------ ANTIREBOTE
+
    debounce : PROCESS (clk, rst)
    BEGIN
       IF (rst = '1') THEN
@@ -59,7 +52,7 @@ BEGIN
       END IF;
    END PROCESS debounce;
 
-   ---------------------------------------------------------- DETECTOR DE FLANCO
+
    edge_detect : PROCESS (clk, rst)
    BEGIN
       IF (rst = '1') THEN
